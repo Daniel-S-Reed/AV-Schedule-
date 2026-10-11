@@ -125,11 +125,13 @@
   }
 
   async function saveOpenMonths(list) {
-    const prev = settings.openMonths;
+    const prev = settings.openMonths, prevAt = settings.openedAt;
     settings.openMonths = list.slice().sort();
+    settings.openedAt = Object.assign({}, settings.openedAt);
+    settings.openMonths.forEach((k) => { if (!prev.includes(k)) settings.openedAt[k] = Date.now(); });
     renderRelease();
     try { await db.saveSettings(settings); toast('Release settings saved'); }
-    catch (e) { settings.openMonths = prev; renderRelease(); fail(e); }
+    catch (e) { settings.openMonths = prev; settings.openedAt = prevAt; renderRelease(); fail(e); }
   }
 
   function onReleaseClick(e) {

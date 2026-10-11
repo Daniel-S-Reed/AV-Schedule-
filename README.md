@@ -72,7 +72,7 @@ The **Email** tab on the manager page can build a reminder ("please send your av
 3. Near the top, replace `PASTE-YOUR-FIREBASE-apiKey-HERE` with the `apiKey` from `js/config.js`.
 4. **Deploy > New deployment > Select type: Web app**. Set **Execute as: Me** and **Who has access: Anyone**. Click **Deploy**, then **Authorize access** and approve (Gmail drafts and "connect to an external service"). Google may show an "unverified app" warning because it is your own script: choose Advanced > Go to project.
 5. Copy the **Web app URL** (ends in `/exec`) and put it in `js/config.js` as `draftEndpoint: 'https://script.google.com/macros/s/.../exec',`.
-6. If you later edit the script, use **Deploy > Manage deployments > Edit > New version** so the same URL keeps working.
+6. If you edit the script (for example to paste a newer `Code.gs`), use **Deploy > Manage deployments > Edit > New version** so the same URL keeps working.
 
 "Anyone" only means anyone can reach the URL: the script checks that the request carries a valid Firebase sign-in for the script owner's own email, and refuses everything else. It can only create drafts, not send.
 

@@ -153,7 +153,14 @@
   }
 
   function wire() {
-    ['eKind', 'eMonth'].forEach((id) => $(id).addEventListener('change', renderEmail));
+    ['eKind', 'eAttach'].forEach((id) => $(id).addEventListener('change', renderEmail));
+    $('eMonths').addEventListener('change', (e) => {
+      const c = e.target.closest('input[data-m]'); if (!c) return;
+      const set = eSel[$('eKind').value];
+      if (c.checked) set.add(c.dataset.m); else set.delete(c.dataset.m);
+      renderEmail();
+    });
+    $('ePdf').addEventListener('click', () => { try { pdfDoc().save(pdfName()); } catch (e) { $('eMsg').textContent = e.message; } });
     $('eDue').addEventListener('input', renderEmail);
     $('eDraft').addEventListener('click', createDraft);
     $('eCopyTo').addEventListener('click', () => copyText(chosenEmails().join(', '), 'Addresses'));
@@ -465,46 +472,48 @@
     return !t || t < opened;
   }
 
-  function scheduleText() {
-    if (!schedule) return '';
-    const nm = (id) => { const v = byId(id); return v ? v.name : ''; };
-    const months = {};
-    schedule.sundays.forEach((d) => { (months[d.slice(0, 7)] = months[d.slice(0, 7)] || []).push(d); });
-    const lines = [];
-    Object.keys(months).forEach((m) => {
-      lines.push('A/V Operators - ' + U.fmtMonthYear(m), '');
-      months[m].forEach((d) => {
-        const day = schedule.assignments[d] || {}, single = schedule.isSingle[d];
-        lines.push(U.fmtLong(d) + (single ? ' (single service)' : '') + (schedule.notes[d] ? ' - ' + schedule.notes[d] : ''));
-        Object.keys(day).sort((a, b) => a - b).forEach((s) => {
-          const label = single ? 'Combined' : (schedule.serviceTimes[s] || 'Service ' + (+s + 1));
-          lines.push('  ' + label + ':  Audio - ' + (nm(day[s].audio) || 'TBD') + '  |  Screens - ' + (nm(day[s].screens) || '(Audio covers)') + '  |  Camera - ' + (nm(day[s].camera) || 'TBD'));
-        });
-        lines.push('');
-      });
-    });
-    return lines.join('\n');
+  const eSel = { remind: new Set(), sched: new Set() };
+  const eInit = { remind: false, sched: false };
+
+  // "November 2026", "November and December 2026", "December 2026 and January 2027"
+  function monthsLabel(keys) {
+    if (!keys.length) return '(no months chosen)';
+    const years = new Set(keys.map((k) => k.slice(0, 4)));
+    const names = keys.map((k) => U.fmtMonthYear(k));
+    const list = (a) => a.length < 3 ? a.join(' and ') : a.slice(0, -1).join(', ') + ', and ' + a[a.length - 1];
+    if (years.size === 1) return list(names.map((n) => n.split(' ')[0])) + ' ' + [...years][0];
+    return list(names);
+  }
+
+  function scheduleMonths() {
+    return schedule ? [...new Set(schedule.sundays.map((d) => d.slice(0, 7)))].sort() : [];
   }
 
   function renderEmail() {
     if (!$('eKind')) return;
     const kind = $('eKind').value;
-    const monthSel = $('eMonth');
-    if (!monthSel.options.length) {
-      monthOptions(monthSel, U.monthKey(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1)));
+    const choices = kind === 'remind' ? releaseKeys() : scheduleMonths();
+    if (!eInit[kind]) {
+      eInit[kind] = true;
+      if (kind === 'remind') { const n = new Date(); eSel.remind.add(U.monthKey(new Date(n.getFullYear(), n.getMonth() + 1, 1))); }
+      else choices.forEach((k) => eSel.sched.add(k));
     }
-    const month = monthSel.value;
-    $('eMonthField').hidden = kind !== 'remind';
+    const sel = choices.filter((k) => eSel[kind].has(k));
+    $('eMonths').innerHTML = choices.length ? choices.map((k) =>
+      '<label class="recip" style="display:inline-block;margin-right:16px"><input type="checkbox" data-m="' + k + '"' + (eSel[kind].has(k) ? ' checked' : '') + '> ' + esc(U.fmtMonthYear(k)) + '</label>').join('')
+      : '<p class="empty">No schedule yet. Generate one on the Schedule tab first.</p>';
     $('eDueField').hidden = kind !== 'remind';
+    $('eAttachField').hidden = kind !== 'sched';
+    $('ePdf').hidden = kind !== 'sched';
+
     let note = '';
     let pool = active();
     if (kind === 'remind') {
-      pool = pool.filter((v) => isMissing(v, month));
-      if (!(settings.openMonths || []).includes(month)) note = 'Heads up: ' + U.fmtMonthYear(month) + ' is not open to volunteers yet. Open it on the Availability entries tab first, or they will have nothing to fill in.';
-      else if (!pool.length) note = 'Everyone has already responded for ' + U.fmtMonthYear(month) + '.';
-    } else if (!schedule) {
-      note = 'There is no schedule yet. Generate one on the Schedule tab first.';
-    } else if (!schedule.published) {
+      pool = pool.filter((v) => sel.some((m) => isMissing(v, m)));
+      const closed = sel.filter((m) => !(settings.openMonths || []).includes(m));
+      if (closed.length) note = 'Heads up: ' + monthsLabel(closed) + (closed.length === 1 ? ' is' : ' are') + ' not open to volunteers yet. Open ' + (closed.length === 1 ? 'it' : 'them') + ' on the Availability entries tab first, or there is nothing to fill in.';
+      else if (sel.length && !pool.length) note = 'Everyone has already responded for ' + monthsLabel(sel) + '.';
+    } else if (schedule && !schedule.published) {
       note = 'This schedule is still a draft, so volunteers cannot see it on the website yet. Publish it first if you want them to find it there.';
     }
     $('eNote').textContent = note;
@@ -514,35 +523,54 @@
       : '<div class="recip none">' + esc(r.v.name) + '<small>no email on file - add one on the Volunteers tab</small></div>').join('')
       : '<p class="empty">Nobody to email.</p>';
 
+    const label = monthsLabel(sel);
     if (kind === 'remind') {
       const due = $('eDue').value.trim();
-      $('eSubject').value = 'A/V team: please send your availability for ' + U.fmtMonthYear(month);
-      $('eBody').value = 'Hi team,\n\nPlease let me know which Sundays you can NOT serve in ' + U.fmtMonthYear(month) + (due ? ' by ' + due : '') + '.\n\n' +
+      $('eSubject').value = 'A/V team: please send your availability for ' + label;
+      $('eBody').value = 'Hi team,\n\nPlease let me know which Sundays you can NOT serve in ' + label + (due ? ' by ' + due : '') + '.\n\n' +
         '1. Go to ' + siteUrl() + '\n' +
-        '2. Type your email address and tap the sign-in link we email you\n' +
+        '2. Pick your name\n' +
         '3. Tap each Sunday you are unavailable, choose your preferred service, and press Save\n\nThank you!';
     } else {
-      $('eSubject').value = schedule ? 'A/V schedule - ' + U.fmtMonthYear(schedule.startMonth) + (schedule.span > 1 ? ' and following' : '') : 'A/V schedule';
-      $('eBody').value = 'Hi team,\n\nHere is the A/V schedule. You can also see just your own assignments, and add them to your calendar, at ' + siteUrl() + ' (sign in with your email).\n\n' +
-        (scheduleText() || '(No schedule has been generated yet.)') + '\nThank you for serving!';
+      const attach = $('eAttach').checked;
+      $('eSubject').value = 'A/V schedule - ' + label;
+      $('eBody').value = 'Hi team,\n\n' + (attach ? 'Attached is' : 'Here is') + ' the A/V schedule for ' + label + '. You can also see just your own assignments, and add them to your calendar, at ' + siteUrl() + '\n\nThank you for serving!';
     }
     $('eMsg').textContent = '';
   }
+
+  const nameOfId = (id) => { const v = byId(id); return v ? v.name : ''; };
+  function selectedSchedMonths() { return scheduleMonths().filter((k) => eSel.sched.has(k)); }
+  function pdfDoc() {
+    const months = selectedSchedMonths();
+    if (!schedule || !months.length) throw new Error('Choose at least one month of the schedule.');
+    if (!window.jspdf) throw new Error('The PDF library did not load (check your internet connection and reload the page).');
+    return AV.pdf.buildSchedulePdf(window.jspdf.jsPDF, schedule, nameOfId, months, U);
+  }
+  const pdfName = () => 'AV_Schedule_' + monthsLabel(selectedSchedMonths()).replace(/[^A-Za-z0-9]+/g, '_') + '.pdf';
 
   const chosenEmails = () => [...document.querySelectorAll('#eRecips input[data-r]')].filter((c) => c.checked).map((c) => eList[+c.dataset.r].email);
 
   async function createDraft() {
     const to = chosenEmails();
     const msg = $('eMsg');
+    const kind = $('eKind').value;
     if (!to.length) { msg.textContent = 'Select at least one recipient with an email address.'; return; }
-    if (!cfg.draftEndpoint) { msg.textContent = 'Gmail drafts are not set up yet. Follow the "Gmail drafts" steps in the README, paste the web app URL into js/config.js as draftEndpoint, or use Copy addresses / Copy message below.'; return; }
+    if (!cfg.draftEndpoint) { msg.textContent = 'Gmail drafts are not set up yet. Follow the "Gmail drafts" steps in the README and paste the web app URL into js/config.js as draftEndpoint, or use Copy addresses / Copy message below.'; return; }
     const token = await db.getIdToken();
     if (!token) { msg.textContent = 'Gmail drafts need the shared database (not demo mode). Use Copy addresses / Copy message for now.'; return; }
+    const payload = { idToken: token, to, subject: $('eSubject').value, body: $('eBody').value };
+    if (kind === 'sched' && $('eAttach').checked) {
+      try {
+        const b64 = pdfDoc().output('datauristring').split(',')[1];
+        payload.attachment = { name: pdfName(), base64: b64 };
+      } catch (e) { msg.textContent = e.message; return; }
+    }
     $('eDraft').disabled = true; msg.textContent = 'Creating draft...';
     try {
-      const r = await fetch(cfg.draftEndpoint, { method: 'POST', body: JSON.stringify({ idToken: token, to, subject: $('eSubject').value, body: $('eBody').value }) });
+      const r = await fetch(cfg.draftEndpoint, { method: 'POST', body: JSON.stringify(payload) });
       const j = await r.json();
-      msg.textContent = j.ok ? 'Draft created. Open Gmail > Drafts to review and send it.' : 'Could not create the draft: ' + (j.error || 'unknown error');
+      msg.textContent = j.ok ? 'Draft created' + (payload.attachment ? ' with the PDF attached' : '') + '. Open Gmail > Drafts to review and send it.' : 'Could not create the draft: ' + (j.error || 'unknown error');
     } catch (e) {
       msg.textContent = 'Could not confirm the draft was created (' + e.message + '). Check your Gmail Drafts folder; if it is not there, see the README troubleshooting.';
     }

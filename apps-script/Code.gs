@@ -17,7 +17,11 @@ function doPost(e) {
 
     const to = (d.to || []).filter(function (x) { return /^\S+@\S+\.\S+$/.test(x); });
     if (!to.length) return out_({ ok: false, error: 'No valid recipients.' });
-    GmailApp.createDraft(to.join(','), String(d.subject || ''), String(d.body || ''));
+    const opts = {};
+    if (d.attachment && d.attachment.base64) {
+      opts.attachments = [Utilities.newBlob(Utilities.base64Decode(d.attachment.base64), 'application/pdf', String(d.attachment.name || 'AV_Schedule.pdf'))];
+    }
+    GmailApp.createDraft(to.join(','), String(d.subject || ''), String(d.body || ''), opts);
     return out_({ ok: true });
   } catch (err) {
     return out_({ ok: false, error: String(err && err.message ? err.message : err) });

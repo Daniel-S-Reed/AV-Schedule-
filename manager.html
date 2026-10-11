@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AV Team - Manager</title>
-<link rel="stylesheet" href="css/style.css?v=8">
+<link rel="stylesheet" href="css/style.css?v=9">
 </head>
 <body>
 <header class="topbar no-print">
@@ -110,9 +110,10 @@
         <div class="row">
           <div class="field"><label for="eKind">What do you want to send?</label>
             <select id="eKind"><option value="remind">Ask for availability</option><option value="sched">Send the schedule</option></select></div>
-          <div class="field" id="eMonthField"><label for="eMonth">For month</label><select id="eMonth"></select></div>
           <div class="field" id="eDueField"><label for="eDue">Please reply by (optional)</label><input type="text" id="eDue" placeholder="e.g. Friday, Oct 25" style="width:200px"></div>
         </div>
+        <div class="field" style="display:block"><label>Months (tick as many as you like)</label><div id="eMonths"></div></div>
+        <div class="field" id="eAttachField" style="display:block"><label style="display:inline;font-weight:500"><input type="checkbox" id="eAttach" checked> Attach the schedule as a PDF</label></div>
         <p id="eNote" class="sub"></p>
         <h3 style="margin:8px 0 4px">Recipients</h3>
         <div id="eRecips"></div>
@@ -120,6 +121,7 @@
         <div class="field" style="display:block"><label for="eBody">Message (you can edit it here or in Gmail)</label><textarea id="eBody" rows="16" style="width:100%"></textarea></div>
         <div class="toolbar">
           <button id="eDraft">Create Gmail draft</button>
+          <button class="secondary" id="ePdf">Download PDF</button>
           <button class="secondary" id="eCopyTo">Copy addresses</button>
           <button class="secondary" id="eCopyBody">Copy message</button>
         </div>
@@ -132,9 +134,11 @@
 <div id="printArea"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script src="js/config.js?v=8"></script>
-<script src="js/db.js?v=8"></script>
-<script src="js/common.js?v=8"></script>
-<script src="js/manager.js?v=8"></script>
+<script src="js/config.js?v=9"></script>
+<script src="js/db.js?v=9"></script>
+<script src="js/common.js?v=9"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="js/pdf.js?v=9"></script>
+<script src="js/manager.js?v=9"></script>
 </body>
 </html>

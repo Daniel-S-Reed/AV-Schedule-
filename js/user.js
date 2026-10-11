@@ -1,4 +1,4 @@
-// Volunteer page: pick your name, mark Sundays you can't serve, see your schedule.
+// Volunteer page: sign in (or pick your name in demo mode), mark Sundays you can't serve, see your schedule.
 (function () {
   const U = AV.util, db = AV.db, cfg = window.AV_CONFIG;
   const $ = (id) => document.getElementById(id);
@@ -7,32 +7,28 @@
   let volunteers = [], settings = {}, schedule = null;
   let me = null, saved = [], selected = new Set(), dirty = false, pref = null;
   let sundays = []; // only Sundays in months the manager has released
+  const show = (id, on) => { $(id).hidden = !on; };
 
-  async function boot() {
-    if (db.mode === 'local') {
-      $('banner').innerHTML = '<div class="banner">Demo mode: entries are saved only in this browser. See README.md to connect the shared database.</div>';
-    }
+  async function loadData() {
     try {
       [volunteers, settings, schedule] = await Promise.all([db.listVolunteers(), db.getSettings(), db.getSchedule()]);
     } catch (e) {
       $('loadError').innerHTML = '<div class="error">Could not load data: ' + esc(e.message) + '</div>';
-      return;
+      return false;
     }
+    $('loadError').innerHTML = '';
     settings = settings || {};
     const today = U.iso(new Date());
     sundays = (settings.openMonths || []).slice().sort()
       .reduce((all, m) => all.concat(U.sundaysInRange(m, 1)), [])
       .filter((d) => d >= today);
-    const sel = $('who');
-    const active = volunteers.filter((v) => !v.disabled); // disabled people aren't listed
-    sel.innerHTML = '<option value="">- choose your name -</option>' +
-      active.map((v) => '<option value="' + esc(v.id) + '">' + esc(v.name) + '</option>').join('');
-    if (!active.length) sel.innerHTML = '<option value="">No volunteers yet - ask your manager to add you</option>';
+    return true;
+  }
 
-    sel.addEventListener('change', () => {
-      if (dirty && !confirm('You have unsaved changes. Switch anyway?')) { sel.value = me ? me.id : ''; return; }
-      pick(sel.value);
-    });
+  function boot() {
+    if (db.mode === 'local') {
+      $('banner').innerHTML = '<div class="banner">Demo mode: entries are saved only in this browser. See README.md to connect the shared database.</div>';
+    }
     $('saveBtn').addEventListener('click', save);
     $('pref').addEventListener('change', () => {
       pref = $('pref').value === '' ? null : +$('pref').value;
@@ -41,18 +37,34 @@
     });
     $('icsBtn').addEventListener('click', downloadIcs);
     window.addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+    bootPicker();
+  }
 
-    const remembered = localStorage.getItem('avs_me');
+  /* ---------------- pick your name from a list ---------------- */
+  async function bootPicker() {
+    show('whoCard', true);
+    if (!(await loadData())) return;
+    const sel = $('who');
+    const active = volunteers.filter((v) => !v.disabled);
+    sel.innerHTML = '<option value="">- choose your name -</option>' +
+      active.map((v) => '<option value="' + esc(v.id) + '">' + esc(v.name) + '</option>').join('');
+    if (!active.length) sel.innerHTML = '<option value="">No volunteers yet - ask your manager to add you</option>';
+    sel.addEventListener('change', () => {
+      if (dirty && !confirm('You have unsaved changes. Switch anyway?')) { sel.value = me ? me.id : ''; return; }
+      pick(sel.value);
+    });
+    let remembered = null;
+    try { remembered = localStorage.getItem('avs_me'); } catch (e) {}
     if (remembered && active.some((v) => v.id === remembered)) { sel.value = remembered; pick(remembered); }
   }
 
   async function pick(id) {
     me = volunteers.find((v) => v.id === id) || null;
     dirty = false;
-    $('availCard').hidden = !me;
-    $('mineCard').hidden = !me;
+    show('availCard', !!me);
+    show('mineCard', !!me);
     if (!me) return;
-    localStorage.setItem('avs_me', id);
+    try { localStorage.setItem('avs_me', id); } catch (e) {}
     try {
       const entry = await db.getEntry(id);
       saved = entry.dates; pref = entry.preferred;

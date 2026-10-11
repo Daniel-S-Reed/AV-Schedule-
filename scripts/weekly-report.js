@@ -80,10 +80,23 @@ function buildReport({ volunteers, entries, settings, now }) {
 
 async function main() {
   const cfgText = fs.readFileSync('js/config.js', 'utf8');
-  const m = /projectId:\s*["']([^"']+)["']/.exec(cfgText);
-  if (!m) throw new Error('No Firebase projectId found in js/config.js (is the site still in demo mode?)');
-  const base = 'https://firestore.googleapis.com/v1/projects/' + m[1] + '/databases/(default)/documents';
-  const f = (u) => fetch(u);
+  const pid = /projectId:\s*["']([^"']+)["']/.exec(cfgText);
+  const key = /apiKey:\s*["']([^"']+)["']/.exec(cfgText);
+  if (!pid || !key) throw new Error('No Firebase projectId/apiKey found in js/config.js (is the site still in demo mode?)');
+  const base = 'https://firestore.googleapis.com/v1/projects/' + pid[1] + '/databases/(default)/documents';
+  // Volunteer names and entries are readable without signing in. If the optional
+  // REPORT_EMAIL / REPORT_PASSWORD secrets exist (for locked-down rules), sign in with them.
+  let headers = {};
+  if (process.env.REPORT_EMAIL && process.env.REPORT_PASSWORD) {
+    const login = await fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + key[1], {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: process.env.REPORT_EMAIL, password: process.env.REPORT_PASSWORD, returnSecureToken: true })
+    });
+    const lj = await login.json();
+    if (!login.ok || !lj.idToken) throw new Error('Report sign-in failed: ' + ((lj.error && lj.error.message) || login.status));
+    headers = { Authorization: 'Bearer ' + lj.idToken };
+  }
+  const f = (u) => fetch(u, { headers });
   const [volunteers, entries] = await Promise.all([listAll(base, 'volunteers', f), listAll(base, 'unavailability', f)]);
   const sr = await f(base + '/meta/settings');
   const settings = sr.ok ? plain(await sr.json()) : {};

@@ -29,22 +29,7 @@ GitHub Pages only hosts files, so it can't save what volunteers enter. This site
      appId: "1:123:web:abc"
    },
    ```
-6. **Firestore Database > Rules** tab: replace everything with the rules below and **Publish**.
-
-   ```
-   rules_version = '2';
-   service cloud.firestore {
-     match /databases/{database}/documents {
-       // Anyone with the link can read names and the published schedule.
-       // Only the signed-in manager can change volunteers, settings or the schedule.
-       match /volunteers/{id}     { allow read: if true; allow write: if request.auth != null; }
-       match /meta/{doc}          { allow read: if true; allow write: if request.auth != null; }
-       // Volunteers save their own unavailable Sundays and preferred service
-       // here without signing in. Positions live in /volunteers (manager only).
-       match /unavailability/{id} { allow read, write: if true; }
-     }
-   }
-   ```
+6. **Firestore Database > Rules** tab: replace everything with the contents of `firestore.rules` (in this folder), check the manager email at the top, and **Publish**. Volunteers need no sign-in; only you (signed in on the manager page) can change names, settings and the schedule, and only you can read the email addresses.
 7. **Authentication > Settings > Authorized domains > Add domain**: add `YOUR-GITHUB-USERNAME.github.io` (needed for manager sign-in to work on your live site).
 
 ## Part 2 - Put it on GitHub Pages
@@ -71,10 +56,26 @@ GitHub Pages only hosts files, so it can't save what volunteers enter. This site
 
 ## Things worth knowing
 
-- **Trust model.** There are no volunteer logins, so anyone with the link can pick any name and edit that person's availability and preferred service. That is usually fine for a church team, but it is not private. Positions, disabling, removing and the schedule itself *are* protected by the Firebase sign-in plus the rules above, so a volunteer can't change what they're allowed to do.
-- **Updating from the first version?** The preferred service replaces the old manager-set "usual service", so anyone who had one will show "no preference" until they pick their own. Existing availability entries carry over in Firebase; in demo mode, start fresh.
+- **Trust model.** Volunteers don't sign in: anyone with the link can pick any name and edit that person's availability and preferred service. That is usually fine for a church team, but it is not private. Positions, disabling, removing, email addresses and the schedule are protected by your manager sign-in plus the rules above.
 - **"Unpublished" hides the schedule on the page, not in the database.** Someone technical who inspects the site could read a draft. Don't put anything sensitive in it.
 - **Your repository and `config.js` are public if the repo is public.** That's normal for Firebase web config (it identifies your project but doesn't grant access). The rules above are what actually protect your data.
 - **Sundays only.** The date picker lists Sundays, matching the desktop app.
 - **No Word export on the website.** Use Print / Save as PDF, or keep using the desktop app for the `.docx`.
 - I tested the scheduling, date and calendar code with automated checks, but I could not open the pages in a real browser or connect to a live Firebase project from here. If something looks off on first use, tell me what you see.
+
+## Part 3 - Gmail drafts (emailing the team)
+
+The **Email** tab on the manager page can build a reminder ("please send your availability for November") or the schedule, and put it into your Gmail **as a draft** addressed to everyone selected. It never sends anything itself.
+
+1. Go to <https://script.google.com> (signed in as the Gmail account you want drafts in) > **New project**.
+2. Delete the sample code and paste in everything from `apps-script/Code.gs`.
+3. Near the top, replace `PASTE-YOUR-FIREBASE-apiKey-HERE` with the `apiKey` from `js/config.js`.
+4. **Deploy > New deployment > Select type: Web app**. Set **Execute as: Me** and **Who has access: Anyone**. Click **Deploy**, then **Authorize access** and approve (Gmail drafts and "connect to an external service"). Google may show an "unverified app" warning because it is your own script: choose Advanced > Go to project.
+5. Copy the **Web app URL** (ends in `/exec`) and put it in `js/config.js` as `draftEndpoint: 'https://script.google.com/macros/s/.../exec',`.
+6. If you later edit the script, use **Deploy > Manage deployments > Edit > New version** so the same URL keeps working.
+
+"Anyone" only means anyone can reach the URL: the script checks that the request carries a valid Firebase sign-in for the script owner's own email, and refuses everything else. It can only create drafts, not send.
+
+## Part 4 - Weekly report (optional)
+
+`.github/workflows/weekly-report.yml` posts a weekly summary (who changed their availability, who hasn't responded) as an issue in your repo, and GitHub emails it to you. Test it from **Actions > Weekly AV update > Run workflow**. No extra accounts are needed with the standard rules.

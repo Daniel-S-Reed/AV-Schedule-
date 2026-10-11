@@ -6,7 +6,7 @@
   const ROLES = U.ROLES; // audio, screens, camera
 
   // unavail: id -> unavailable Sundays; prefs: id -> preferred service index (set by the volunteer)
-  let volunteers = [], unavail = {}, prefs = {}, stamps = {}, settings = null, schedule = null, editingId = null;
+  let volunteers = [], unavail = {}, prefs = {}, stamps = {}, emails = {}, settings = null, schedule = null, editingId = null;
 
   /* ------------------------------ helpers ------------------------------ */
   let toastTimer;
@@ -59,14 +59,15 @@
   }
 
   async function load() {
-    let entries;
+    let entries, members;
     try {
-      [volunteers, entries, settings, schedule] = await Promise.all([db.listVolunteers(), db.getAllEntries(), db.getSettings(), db.getSchedule()]);
+      [volunteers, entries, settings, schedule, members] = await Promise.all([db.listVolunteers(), db.getAllEntries(), db.getSettings(), db.getSchedule(), db.listMembers()]);
     } catch (e) {
       $('loadError').innerHTML = '<div class="error">Could not load data: ' + esc(e.message) + '</div>';
       return;
     }
     $('loadError').innerHTML = '';
+    emails = {}; members.forEach((m) => { emails[m.volunteerId] = m.email; });
     unavail = {}; prefs = {}; stamps = {};
     Object.keys(entries).forEach((id) => { unavail[id] = entries[id].dates || []; prefs[id] = entries[id].preferred; stamps[id] = entries[id].updatedAt || 0; });
     settings = Object.assign({ serviceTimes: cfg.serviceDefaults.slice(), singleDates: {}, notes: {}, openMonths: [] }, settings || {});
@@ -83,6 +84,7 @@
     renderAvailability();
     renderSundaySettings();
     renderSchedule();
+    renderEmail();
   }
 
   /* ------------------------------ responses ------------------------------ */
@@ -151,6 +153,11 @@
   }
 
   function wire() {
+    ['eKind', 'eMonth'].forEach((id) => $(id).addEventListener('change', renderEmail));
+    $('eDue').addEventListener('input', renderEmail);
+    $('eDraft').addEventListener('click', createDraft);
+    $('eCopyTo').addEventListener('click', () => copyText(chosenEmails().join(', '), 'Addresses'));
+    $('eCopyBody').addEventListener('click', () => copyText($('eSubject').value + '\n\n' + $('eBody').value, 'Message'));
     $('markSeen').addEventListener('click', () => { try { localStorage.setItem('avm_seen', String(Date.now())); } catch (e) {} renderResponses(); });
     $('monthRelease').addEventListener('click', onReleaseClick);
     $('openNext').addEventListener('click', openNext);
@@ -166,7 +173,8 @@
 
     document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => {
       document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('active', x === b));
-      ['volunteers', 'availability', 'schedule'].forEach((t) => { $('tab-' + t).hidden = t !== b.dataset.tab; });
+      ['volunteers', 'availability', 'schedule', 'email'].forEach((t) => { $('tab-' + t).hidden = t !== b.dataset.tab; });
+      if (b.dataset.tab === 'email') renderEmail();
     }));
 
     $('vSave').addEventListener('click', saveVolunteer);
@@ -189,13 +197,14 @@
   /* ----------------------------- volunteers ----------------------------- */
   function clearForm() {
     editingId = null;
-    $('vName').value = '';
+    $('vName').value = ''; $('vEmail').value = '';
     ['vAudio', 'vScreens', 'vCamera'].forEach((id) => { $(id).checked = false; });
     $('vSave').textContent = 'Add volunteer'; $('formTitle').textContent = 'Add a volunteer';
   }
 
   async function refreshVolunteers() {
-    volunteers = await db.listVolunteers();
+    const [vs, ms] = await Promise.all([db.listVolunteers(), db.listMembers()]);
+    volunteers = vs; emails = {}; ms.forEach((m) => { emails[m.volunteerId] = m.email; });
     renderVolunteers(); renderAvailability(); renderSchedule();
   }
 
@@ -204,11 +213,18 @@
     if (!name) { $('vName').focus(); return; }
     const positions = { audio: $('vAudio').checked, screens: $('vScreens').checked, camera: $('vCamera').checked };
     if (!positions.audio && !positions.screens && !positions.camera) { toast('Pick at least one position.', true); return; }
+    const email = $('vEmail').value.trim().toLowerCase();
+    if (email && !/^\S+@\S+\.\S+$/.test(email)) { toast('That email address does not look right.', true); $('vEmail').focus(); return; }
+    const clash = email && Object.keys(emails).find((id) => emails[id] === email && id !== editingId);
+    if (clash) { toast('That email already belongs to ' + (byId(clash) ? byId(clash).name : 'another volunteer') + '.', true); return; }
+    const oldEmail = editingId ? emails[editingId] : '';
     const existing = byId(editingId);
     const rec = { name, positions, disabled: existing ? !!existing.disabled : false, timesServed: existing ? existing.timesServed || 0 : 0 };
     if (editingId) rec.id = editingId;
     try {
-      await db.saveVolunteer(rec);
+      const id = await db.saveVolunteer(rec);
+      if (oldEmail && oldEmail !== email) await db.deleteMember(oldEmail);
+      if (email) await db.saveMember(email, id);
       clearForm(); await refreshVolunteers();
       toast('Saved');
     } catch (e) { fail(e); }
@@ -220,13 +236,14 @@
       const p = prefs[v.id];
       const prefText = p != null && settings.serviceTimes[p] ? esc(settings.serviceTimes[p]) : '<span style="color:var(--muted)">no preference</span>';
       return '<tr class="' + (v.disabled ? 'row-disabled' : '') + '"><td><strong>' + esc(v.name) + '</strong>' + (v.disabled ? ' <span class="chip off">Disabled</span>' : '') + '</td><td>' +
+        (emails[v.id] ? esc(emails[v.id]) : '<span class="chip warn">no email - cannot sign in</span>') + '</td><td>' +
         ROLES.filter((r) => v.positions && v.positions[r]).map((r) => '<span class="chip ' + r + '">' + U.ROLE_LABEL[r] + '</span> ').join('') +
         '</td><td>' + prefText + '</td><td>' + (v.timesServed || 0) + '</td><td style="text-align:right;white-space:nowrap">' +
         '<button class="secondary" data-edit="' + esc(v.id) + '">Edit</button> ' +
         '<button class="secondary" data-toggle="' + esc(v.id) + '">' + (v.disabled ? 'Enable' : 'Disable') + '</button> ' +
         '<button class="danger" data-del="' + esc(v.id) + '">Remove</button></td></tr>';
     }).join('')
-      : '<tr><td colspan="5" class="empty">No volunteers yet. Add your first one above.</td></tr>';
+      : '<tr><td colspan="6" class="empty">No volunteers yet. Add your first one above.</td></tr>';
   }
 
   function inSchedule(id) {
@@ -238,7 +255,7 @@
     const edit = e.target.closest('[data-edit]'), del = e.target.closest('[data-del]'), tog = e.target.closest('[data-toggle]');
     if (edit) {
       const v = byId(edit.dataset.edit); if (!v) return;
-      editingId = v.id; $('vName').value = v.name;
+      editingId = v.id; $('vName').value = v.name; $('vEmail').value = emails[v.id] || '';
       $('vAudio').checked = !!v.positions.audio; $('vScreens').checked = !!v.positions.screens; $('vCamera').checked = !!v.positions.camera;
       $('vSave').textContent = 'Update volunteer'; $('formTitle').textContent = 'Edit ' + v.name;
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -256,6 +273,7 @@
       if (!confirm('Permanently remove ' + v.name + ' and their saved availability? (To keep them on the list but stop scheduling them, use Disable instead.)')) return;
       try {
         await db.deleteVolunteer(v.id);
+        if (emails[v.id]) await db.deleteMember(emails[v.id]);
         delete unavail[v.id]; delete prefs[v.id];
         await refreshVolunteers();
         toast(inSchedule(v.id) ? 'Removed. They are still named in the current schedule - regenerate or edit it.' : 'Removed', inSchedule(v.id));
@@ -435,6 +453,105 @@
         renderVolunteers(); renderSchedule(); toast('Served counts updated');
       } else if (act === 'print') { printSchedule(); }
     } catch (err) { fail(err); }
+  }
+
+  /* --------------------------------- email --------------------------------- */
+  const siteUrl = () => new URL('index.html', window.location.href).href;
+  let eList = []; // [{v, email}] for the current recipients list
+
+  function isMissing(v, month) {
+    const t = stamps[v.id] || 0;
+    const opened = (settings.openedAt || {})[month] || 0;
+    return !t || t < opened;
+  }
+
+  function scheduleText() {
+    if (!schedule) return '';
+    const nm = (id) => { const v = byId(id); return v ? v.name : ''; };
+    const months = {};
+    schedule.sundays.forEach((d) => { (months[d.slice(0, 7)] = months[d.slice(0, 7)] || []).push(d); });
+    const lines = [];
+    Object.keys(months).forEach((m) => {
+      lines.push('A/V Operators - ' + U.fmtMonthYear(m), '');
+      months[m].forEach((d) => {
+        const day = schedule.assignments[d] || {}, single = schedule.isSingle[d];
+        lines.push(U.fmtLong(d) + (single ? ' (single service)' : '') + (schedule.notes[d] ? ' - ' + schedule.notes[d] : ''));
+        Object.keys(day).sort((a, b) => a - b).forEach((s) => {
+          const label = single ? 'Combined' : (schedule.serviceTimes[s] || 'Service ' + (+s + 1));
+          lines.push('  ' + label + ':  Audio - ' + (nm(day[s].audio) || 'TBD') + '  |  Screens - ' + (nm(day[s].screens) || '(Audio covers)') + '  |  Camera - ' + (nm(day[s].camera) || 'TBD'));
+        });
+        lines.push('');
+      });
+    });
+    return lines.join('\n');
+  }
+
+  function renderEmail() {
+    if (!$('eKind')) return;
+    const kind = $('eKind').value;
+    const monthSel = $('eMonth');
+    if (!monthSel.options.length) {
+      monthOptions(monthSel, U.monthKey(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1)));
+    }
+    const month = monthSel.value;
+    $('eMonthField').hidden = kind !== 'remind';
+    $('eDueField').hidden = kind !== 'remind';
+    let note = '';
+    let pool = active();
+    if (kind === 'remind') {
+      pool = pool.filter((v) => isMissing(v, month));
+      if (!(settings.openMonths || []).includes(month)) note = 'Heads up: ' + U.fmtMonthYear(month) + ' is not open to volunteers yet. Open it on the Availability entries tab first, or they will have nothing to fill in.';
+      else if (!pool.length) note = 'Everyone has already responded for ' + U.fmtMonthYear(month) + '.';
+    } else if (!schedule) {
+      note = 'There is no schedule yet. Generate one on the Schedule tab first.';
+    } else if (!schedule.published) {
+      note = 'This schedule is still a draft, so volunteers cannot see it on the website yet. Publish it first if you want them to find it there.';
+    }
+    $('eNote').textContent = note;
+    eList = pool.map((v) => ({ v, email: emails[v.id] || '' }));
+    $('eRecips').innerHTML = eList.length ? eList.map((r, i) => r.email
+      ? '<label class="recip"><input type="checkbox" data-r="' + i + '" checked> ' + esc(r.v.name) + '<small>' + esc(r.email) + '</small></label>'
+      : '<div class="recip none">' + esc(r.v.name) + '<small>no email on file - add one on the Volunteers tab</small></div>').join('')
+      : '<p class="empty">Nobody to email.</p>';
+
+    if (kind === 'remind') {
+      const due = $('eDue').value.trim();
+      $('eSubject').value = 'A/V team: please send your availability for ' + U.fmtMonthYear(month);
+      $('eBody').value = 'Hi team,\n\nPlease let me know which Sundays you can NOT serve in ' + U.fmtMonthYear(month) + (due ? ' by ' + due : '') + '.\n\n' +
+        '1. Go to ' + siteUrl() + '\n' +
+        '2. Type your email address and tap the sign-in link we email you\n' +
+        '3. Tap each Sunday you are unavailable, choose your preferred service, and press Save\n\nThank you!';
+    } else {
+      $('eSubject').value = schedule ? 'A/V schedule - ' + U.fmtMonthYear(schedule.startMonth) + (schedule.span > 1 ? ' and following' : '') : 'A/V schedule';
+      $('eBody').value = 'Hi team,\n\nHere is the A/V schedule. You can also see just your own assignments, and add them to your calendar, at ' + siteUrl() + ' (sign in with your email).\n\n' +
+        (scheduleText() || '(No schedule has been generated yet.)') + '\nThank you for serving!';
+    }
+    $('eMsg').textContent = '';
+  }
+
+  const chosenEmails = () => [...document.querySelectorAll('#eRecips input[data-r]')].filter((c) => c.checked).map((c) => eList[+c.dataset.r].email);
+
+  async function createDraft() {
+    const to = chosenEmails();
+    const msg = $('eMsg');
+    if (!to.length) { msg.textContent = 'Select at least one recipient with an email address.'; return; }
+    if (!cfg.draftEndpoint) { msg.textContent = 'Gmail drafts are not set up yet. Follow the "Gmail drafts" steps in the README, paste the web app URL into js/config.js as draftEndpoint, or use Copy addresses / Copy message below.'; return; }
+    const token = await db.getIdToken();
+    if (!token) { msg.textContent = 'Gmail drafts need the shared database (not demo mode). Use Copy addresses / Copy message for now.'; return; }
+    $('eDraft').disabled = true; msg.textContent = 'Creating draft...';
+    try {
+      const r = await fetch(cfg.draftEndpoint, { method: 'POST', body: JSON.stringify({ idToken: token, to, subject: $('eSubject').value, body: $('eBody').value }) });
+      const j = await r.json();
+      msg.textContent = j.ok ? 'Draft created. Open Gmail > Drafts to review and send it.' : 'Could not create the draft: ' + (j.error || 'unknown error');
+    } catch (e) {
+      msg.textContent = 'Could not confirm the draft was created (' + e.message + '). Check your Gmail Drafts folder; if it is not there, see the README troubleshooting.';
+    }
+    $('eDraft').disabled = false;
+  }
+
+  async function copyText(text, what) {
+    try { await navigator.clipboard.writeText(text); toast(what + ' copied'); }
+    catch (e) { toast('Could not copy - select the text and copy it manually.', true); }
   }
 
   /* -------------------------------- print -------------------------------- */

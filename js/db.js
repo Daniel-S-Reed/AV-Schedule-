@@ -55,6 +55,14 @@
     async saveSettings(s) { const d = L.load(); d.settings = s; L.save(d); },
     async getSchedule() { return L.load().schedule || null; },
     async saveSchedule(s) { const d = L.load(); d.schedule = s; L.save(d); },
+    // Volunteer email addresses (who may sign in). Stored as [{email, volunteerId}].
+    async listMembers() {
+      const m = L.load().members || {};
+      return Object.keys(m).map((email) => ({ email, volunteerId: m[email].volunteerId }));
+    },
+    async saveMember(email, volunteerId) { const d = L.load(); d.members = d.members || {}; d.members[email] = { volunteerId }; L.save(d); },
+    async deleteMember(email) { const d = L.load(); if (d.members) delete d.members[email]; L.save(d); },
+    async getIdToken() { return null; },
     auth: {
       needsLogin: false,
       onChange(cb) { cb({ demo: true }); },
@@ -135,6 +143,23 @@
     async saveSchedule(s) {
       const { fs, db } = await fb();
       await fs.setDoc(fs.doc(db, 'meta', 'schedule'), s);
+    },
+    async listMembers() {
+      const { fs, db } = await fb();
+      const snap = await fs.getDocs(fs.collection(db, 'members'));
+      return snap.docs.map((d) => ({ email: d.id, volunteerId: d.data().volunteerId }));
+    },
+    async saveMember(email, volunteerId) {
+      const { fs, db } = await fb();
+      await fs.setDoc(fs.doc(db, 'members', email), { volunteerId });
+    },
+    async deleteMember(email) {
+      const { fs, db } = await fb();
+      await fs.deleteDoc(fs.doc(db, 'members', email));
+    },
+    async getIdToken() {
+      const { auth } = await fb();
+      return auth.currentUser ? auth.currentUser.getIdToken() : null;
     },
     auth: {
       needsLogin: true,

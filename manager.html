@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AV Team - Manager</title>
-<link rel="stylesheet" href="css/style.css?v=6">
+<link rel="stylesheet" href="css/style.css?v=8">
 </head>
 <body>
 <header class="topbar no-print">
@@ -30,6 +30,7 @@
       <button class="active" data-tab="volunteers">Volunteers</button>
       <button data-tab="availability">Availability entries</button>
       <button data-tab="schedule">Schedule</button>
+      <button data-tab="email">Email</button>
     </div>
 
     <!-- ===== Volunteers ===== -->
@@ -38,6 +39,7 @@
         <h2 id="formTitle">Add a volunteer</h2>
         <div class="row">
           <div class="field"><label for="vName">Name</label><input type="text" id="vName" style="width:240px"></div>
+          <div class="field"><label for="vEmail">Email (for sign-in and team emails)</label><input type="email" id="vEmail" style="width:260px" autocomplete="off"></div>
           <div class="field"><label>Can do</label>
             <label style="display:inline;font-weight:500;margin-right:12px"><input type="checkbox" id="vAudio"> Audio</label>
             <label style="display:inline;font-weight:500;margin-right:12px"><input type="checkbox" id="vScreens"> Screens</label>
@@ -49,7 +51,7 @@
       <div class="card">
         <h2>Team (<span id="vCount">0</span>)</h2>
         <p class="sub"><strong>Disable</strong> someone to keep them on the list without scheduling them (they disappear from the volunteer page and can be re-enabled later). <strong>Remove</strong> deletes them and their entries permanently. Preferred service is chosen by each volunteer on their own page.</p>
-        <div class="scroll"><table class="list"><thead><tr><th>Name</th><th>Positions</th><th>Preferred service</th><th>Times served</th><th></th></tr></thead><tbody id="vBody"></tbody></table></div>
+        <div class="scroll"><table class="list"><thead><tr><th>Name</th><th>Email</th><th>Positions</th><th>Preferred service</th><th>Times served</th><th></th></tr></thead><tbody id="vBody"></tbody></table></div>
       </div>
     </section>
 
@@ -99,15 +101,40 @@
       </div>
       <div id="schedOut"></div>
     </section>
+
+    <!-- ===== Email ===== -->
+    <section id="tab-email" hidden>
+      <div class="card">
+        <h2>Email the team</h2>
+        <p class="sub">This creates <strong>one draft</strong> in your Gmail addressed to everyone selected. Nothing is sent until you review it and press Send in Gmail.</p>
+        <div class="row">
+          <div class="field"><label for="eKind">What do you want to send?</label>
+            <select id="eKind"><option value="remind">Ask for availability</option><option value="sched">Send the schedule</option></select></div>
+          <div class="field" id="eMonthField"><label for="eMonth">For month</label><select id="eMonth"></select></div>
+          <div class="field" id="eDueField"><label for="eDue">Please reply by (optional)</label><input type="text" id="eDue" placeholder="e.g. Friday, Oct 25" style="width:200px"></div>
+        </div>
+        <p id="eNote" class="sub"></p>
+        <h3 style="margin:8px 0 4px">Recipients</h3>
+        <div id="eRecips"></div>
+        <div class="field" style="display:block;margin-top:12px"><label for="eSubject">Subject</label><input type="text" id="eSubject" style="width:100%"></div>
+        <div class="field" style="display:block"><label for="eBody">Message (you can edit it here or in Gmail)</label><textarea id="eBody" rows="16" style="width:100%"></textarea></div>
+        <div class="toolbar">
+          <button id="eDraft">Create Gmail draft</button>
+          <button class="secondary" id="eCopyTo">Copy addresses</button>
+          <button class="secondary" id="eCopyBody">Copy message</button>
+        </div>
+        <p id="eMsg" class="sub" aria-live="polite"></p>
+      </div>
+    </section>
   </main>
 </div>
 
 <div id="printArea"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script src="js/config.js?v=6"></script>
-<script src="js/db.js?v=6"></script>
-<script src="js/common.js?v=6"></script>
-<script src="js/manager.js?v=6"></script>
+<script src="js/config.js?v=8"></script>
+<script src="js/db.js?v=8"></script>
+<script src="js/common.js?v=8"></script>
+<script src="js/manager.js?v=8"></script>
 </body>
 </html>

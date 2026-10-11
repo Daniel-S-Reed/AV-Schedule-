@@ -3,6 +3,7 @@
 // ------------------------------------------------------------------
 window.AV_CONFIG = {
    notifyAccessKey: '6a96514d-0c66-470a-85f3-6c3497fe0a21',
+   draftEndpoint: 'https://script.google.com/macros/s/AKfycbz7PTkjdhjhCnAxTElDbOx95O2r1hSEWIU6vBAr7-9nVFMCzd7GFUiWk5kNbcvQFGxo/exec',
   // Paste your Firebase web-app config here to turn on SHARED mode
   // (volunteers and manager all see the same data). See README.md.
   // Leave as null for DEMO mode: data stays in this one browser only.

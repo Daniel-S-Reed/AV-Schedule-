@@ -2,7 +2,7 @@
 // Settings you may want to change.
 // ------------------------------------------------------------------
 window.AV_CONFIG = {
-   notifyAccessKey: 'paste-your-key-here',
+   notifyAccessKey: '6a96514d-0c66-470a-85f3-6c3497fe0a21',
   // Paste your Firebase web-app config here to turn on SHARED mode
   // (volunteers and manager all see the same data). See README.md.
   // Leave as null for DEMO mode: data stays in this one browser only.

@@ -1,0 +1,28 @@
+name: Weekly AV update
+
+on:
+  schedule:
+    - cron: '0 12 * * 1'   # Mondays, 12:00 UTC (8:00 AM Eastern during daylight time)
+  workflow_dispatch:        # lets you run it by hand from the Actions tab
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build report
+        run: node scripts/weekly-report.js > report.md
+      - name: Post report as an issue (GitHub emails you)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          { echo "@$OWNER"; echo; cat report.md; } > body.md
+          gh issue create --repo "${{ github.repository }}" --title "AV weekly update $(date -u +%Y-%m-%d)" --body-file body.md

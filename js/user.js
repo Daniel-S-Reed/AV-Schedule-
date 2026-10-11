@@ -6,7 +6,7 @@
 
   let volunteers = [], settings = {}, schedule = null;
   let me = null, saved = [], selected = new Set(), dirty = false, pref = null;
-  const sundays = U.upcomingSundays(cfg.monthsAhead);
+  let sundays = []; // only Sundays in months the manager has released
 
   async function boot() {
     if (db.mode === 'local') {
@@ -19,6 +19,10 @@
       return;
     }
     settings = settings || {};
+    const today = U.iso(new Date());
+    sundays = (settings.openMonths || []).slice().sort()
+      .reduce((all, m) => all.concat(U.sundaysInRange(m, 1)), [])
+      .filter((d) => d >= today);
     const sel = $('who');
     const active = volunteers.filter((v) => !v.disabled); // disabled people aren't listed
     sel.innerHTML = '<option value="">- choose your name -</option>' +
@@ -73,6 +77,12 @@
   }
 
   function renderDays() {
+    if (!sundays.length) {
+      $('days').innerHTML = '<p class="empty">No months are open for availability right now. Your manager will release the next month soon - check back later.</p>';
+      $('saveBtn').hidden = true;
+      return;
+    }
+    $('saveBtn').hidden = false;
     const byMonth = {};
     sundays.forEach((d) => { (byMonth[d.slice(0, 7)] = byMonth[d.slice(0, 7)] || []).push(d); });
     const single = settings.singleDates || {}, notes = settings.notes || {};
@@ -101,6 +111,7 @@
   }
 
   function setSaveState(msg) {
+    if (!sundays.length) { $('saveBtn').disabled = !dirty; $('saveMsg').textContent = dirty ? 'You have unsaved changes.' : ''; return; }
     $('saveBtn').disabled = !dirty;
     $('saveMsg').textContent = msg || (dirty ? 'You have unsaved changes.' :
       (selected.size ? 'You are marked unavailable for ' + selected.size + ' Sunday' + (selected.size === 1 ? '' : 's') + '.' : 'You are available every Sunday shown.'));

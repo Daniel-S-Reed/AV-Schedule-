@@ -56,11 +56,20 @@
     <!-- ===== Availability ===== -->
     <section id="tab-availability" hidden>
       <div class="card">
+        <h2>Release months to volunteers</h2>
+        <p class="sub">Volunteers can only mark Sundays in months you have <strong>opened</strong>. Click a month to open or close it. Closing a month hides it from volunteers but keeps what they already entered.</p>
+        <div class="row" style="margin-bottom:10px">
+          <div class="field" style="margin-bottom:0"><label for="openN">Open the next (months)</label><input type="number" id="openN" min="1" max="12" step="1" value="1" style="width:100px"></div>
+          <div class="field" style="margin-bottom:0"><button id="openNext">Open next months</button> <button class="secondary" id="closeAll">Close all</button></div>
+        </div>
+        <div id="monthRelease" class="days"></div>
+      </div>
+      <div class="card">
         <h2>Everyone's entries</h2>
         <p class="sub">Red &#10005; = unavailable. You can click any cell to change it on someone's behalf (for example, if they emailed you).</p>
         <div class="row">
           <div class="field"><label for="aMonth">Starting month</label><select id="aMonth"></select></div>
-          <div class="field"><label for="aSpan">Span</label><select id="aSpan"><option value="1">1 month</option><option value="3">3 months</option></select></div>
+          <div class="field"><label for="aSpan">Number of months</label><input type="number" id="aSpan" min="1" max="24" step="1" value="1" style="width:120px"></div>
         </div>
         <div class="scroll" id="availWrap"></div>
       </div>
@@ -72,7 +81,7 @@
         <h2>Generate a schedule</h2>
         <div class="row">
           <div class="field"><label for="sMonth">Starting month</label><select id="sMonth"></select></div>
-          <div class="field"><label for="sSpan">Span</label><select id="sSpan"><option value="1">1 month</option><option value="3">3 months</option></select></div>
+          <div class="field"><label for="sSpan">Number of months</label><input type="number" id="sSpan" min="1" max="24" step="1" value="1" style="width:120px"></div>
           <div class="field"><label for="svc0">Service 1</label><input type="text" id="svc0" style="width:90px"></div>
           <div class="field"><label for="svc1">Service 2</label><input type="text" id="svc1" style="width:90px"></div>
           <div class="field"><label for="svc2">Service 3</label><input type="text" id="svc2" style="width:90px"></div>

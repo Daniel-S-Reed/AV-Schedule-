@@ -6,16 +6,14 @@ window.AV_CONFIG = {
   // (volunteers and manager all see the same data). See README.md.
   // Leave as null for DEMO mode: data stays in this one browser only.
   //
-  
-  firebase: {
-    apiKey: "AIzaSyDvY_mJ1j6Pl0NDzB5uzV7MwfgOGqnzl2o",
-    authDomain: "av-scheduler-a5387.firebaseapp.com",
-    projectId: "av-scheduler-a5387",
-    storageBucket: "av-scheduler-a5387.firebasestorage.app",
-    messagingSenderId: "411456420299",
-    appId: "1:411456420299:web:6ce61572ec7bdde7905e4e"
-  },
-
+  // Example:
+  // firebase: {
+  //   apiKey: "AIza...",
+  //   authDomain: "your-project.firebaseapp.com",
+  //   projectId: "your-project",
+  //   appId: "1:123:web:abc"
+  // },
+  firebase: null,
 
   // Starting service times, editable later on the manager page.
   serviceDefaults: ['8:30', '9:45', '11:00'],

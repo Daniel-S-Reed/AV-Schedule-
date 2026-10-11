@@ -21,6 +21,14 @@
   const active = () => volunteers.filter((v) => !v.disabled);
   const byId = (id) => volunteers.find((v) => v.id === id);
 
+  // Reads a "Number of months" box. Blank or nonsense becomes 1, and anything
+  // outside 1-24 is pulled back into range (and the box is corrected to match).
+  function monthsIn(boxId) {
+    const n = Math.max(1, Math.min(24, parseInt($(boxId).value, 10) || 1));
+    $(boxId).value = n;
+    return n;
+  }
+
   function monthOptions(sel, selectedKey) {
     const now = new Date();
     let html = '';
@@ -61,7 +69,8 @@
     $('loadError').innerHTML = '';
     unavail = {}; prefs = {};
     Object.keys(entries).forEach((id) => { unavail[id] = entries[id].dates || []; prefs[id] = entries[id].preferred; });
-    settings = Object.assign({ serviceTimes: cfg.serviceDefaults.slice(), singleDates: {}, notes: {} }, settings || {});
+    settings = Object.assign({ serviceTimes: cfg.serviceDefaults.slice(), singleDates: {}, notes: {}, openMonths: [] }, settings || {});
+    if (!Array.isArray(settings.openMonths)) settings.openMonths = [];
     const next = new Date(); next.setMonth(next.getMonth() + 1);
     const nextKey = U.monthKey(next);
     monthOptions($('aMonth'), nextKey);
@@ -69,12 +78,55 @@
     if (schedule) $('sSpan').value = String(schedule.span);
     [0, 1, 2].forEach((i) => { $('svc' + i).value = settings.serviceTimes[i] || ''; });
     renderVolunteers();
+    renderRelease();
     renderAvailability();
     renderSundaySettings();
     renderSchedule();
   }
 
+  /* --------------------------- release months --------------------------- */
+  function releaseKeys() {
+    const now = new Date(), keys = [];
+    for (let i = 0; i < 12; i++) keys.push(U.monthKey(new Date(now.getFullYear(), now.getMonth() + i, 1)));
+    return keys;
+  }
+
+  function renderRelease() {
+    const open = new Set(settings.openMonths);
+    $('monthRelease').innerHTML = releaseKeys().map((k) =>
+      '<button type="button" class="day' + (open.has(k) ? ' open' : '') + '" data-month="' + k + '" aria-pressed="' + open.has(k) + '">' +
+      esc(U.fmtMonthYear(k)) + '<small>' + (open.has(k) ? 'Open to volunteers' : 'Closed') + '</small></button>').join('');
+  }
+
+  async function saveOpenMonths(list) {
+    const prev = settings.openMonths;
+    settings.openMonths = list.slice().sort();
+    renderRelease();
+    try { await db.saveSettings(settings); toast('Release settings saved'); }
+    catch (e) { settings.openMonths = prev; renderRelease(); fail(e); }
+  }
+
+  function onReleaseClick(e) {
+    const b = e.target.closest('[data-month]'); if (!b) return;
+    const k = b.dataset.month, set = new Set(settings.openMonths);
+    if (set.has(k)) set.delete(k); else set.add(k);
+    saveOpenMonths([...set]);
+  }
+
+  function openNext() {
+    const n = Math.max(1, Math.min(12, parseInt($('openN').value, 10) || 1));
+    $('openN').value = n;
+    const set = new Set(settings.openMonths), keys = releaseKeys();
+    let added = 0;
+    for (const k of keys) { if (added >= n) break; if (!set.has(k)) { set.add(k); added++; } }
+    saveOpenMonths([...set]);
+  }
+
   function wire() {
+    $('monthRelease').addEventListener('click', onReleaseClick);
+    $('openNext').addEventListener('click', openNext);
+    $('closeAll').addEventListener('click', () => { if (settings.openMonths.length) saveOpenMonths([]); });
+
     $('loginBtn').addEventListener('click', async () => {
       $('loginMsg').hidden = true;
       try { await db.auth.signIn($('email').value.trim(), $('pw').value); }
@@ -188,7 +240,7 @@
     const people = active();
     if (!people.length) { wrap.innerHTML = '<p class="empty" style="padding:14px">Add volunteers first (disabled volunteers are not shown here).</p>'; return; }
     const left = wrap.scrollLeft;
-    const sundays = U.sundaysInRange($('aMonth').value, +$('aSpan').value);
+    const sundays = U.sundaysInRange($('aMonth').value, monthsIn('aSpan'));
     let prevMonth = '';
     const mstart = sundays.map((d) => { const m = d.slice(0, 7); const s = m !== prevMonth; prevMonth = m; return s; });
     const head = '<tr><th class="stick">Volunteer</th>' + sundays.map((d, i) =>
@@ -220,7 +272,7 @@
 
   /* --------------------------- schedule settings --------------------------- */
   function renderSundaySettings() {
-    const sundays = U.sundaysInRange($('sMonth').value, +$('sSpan').value);
+    const sundays = U.sundaysInRange($('sMonth').value, monthsIn('sSpan'));
     $('sunBody').innerHTML = sundays.map((d) =>
       '<tr><td>' + esc(U.fmtLong(d)) + '</td><td><input type="checkbox" data-single="' + d + '"' + (settings.singleDates[d] ? ' checked' : '') + ' aria-label="Single service on ' + d + '"></td>' +
       '<td><input type="text" data-note="' + d + '" value="' + esc(settings.notes[d] || '') + '" style="width:100%" placeholder="optional"></td></tr>').join('');
@@ -239,7 +291,7 @@
     if (!active().length) { toast('Add or enable volunteers first.', true); return; }
     if (schedule && schedule.published && !confirm('A schedule is currently published. Generating a new one replaces it and un-publishes it. Continue?')) return;
     settings.serviceTimes = [0, 1, 2].map((i) => $('svc' + i).value.trim() || 'Service ' + (i + 1));
-    const month = $('sMonth').value, span = +$('sSpan').value;
+    const month = $('sMonth').value, span = monthsIn('sSpan');
     const sundays = U.sundaysInRange(month, span);
     const g = U.generate(volunteers, unavail, prefs, settings.serviceTimes, settings.singleDates, sundays);
     const notes = {}; sundays.forEach((d) => { if (settings.notes[d]) notes[d] = settings.notes[d]; });

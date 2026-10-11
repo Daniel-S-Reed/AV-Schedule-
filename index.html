@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AV Team - My Availability</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <h1>AV Team Scheduling</h1>
+  <nav><a class="current" href="index.html">Volunteer page</a><a href="manager.html">Manager</a></nav>
+</header>
+<div id="banner"></div>
+
+<div class="wrap">
+  <div id="loadError"></div>
+
+  <section class="card">
+    <h2>1. Who are you?</h2>
+    <p class="sub">Pick your name. This browser will remember it next time.</p>
+    <select id="who" aria-label="Your name"><option value="">Loading...</option></select>
+  </section>
+
+  <section class="card" id="availCard" hidden>
+    <h2>2. Your preferences</h2>
+    <div class="field">
+      <label for="pref">The service I prefer to work</label>
+      <select id="pref"></select>
+    </div>
+    <p class="sub">Your manager will try to schedule you at this service whenever they can.</p>
+    <h3 style="margin:8px 0 4px">Which Sundays can't you serve?</h3>
+    <p class="sub">Tap a Sunday to mark it <strong>unavailable</strong> (it turns red). Tap again to undo. Then press Save.</p>
+    <div id="days"></div>
+    <div class="savebar">
+      <button id="saveBtn" disabled>Save my availability</button>
+      <span id="saveMsg" aria-live="polite"></span>
+    </div>
+  </section>
+
+  <section class="card" id="mineCard" hidden>
+    <h2>3. My schedule</h2>
+    <p class="sub" id="mineSub"></p>
+    <div id="mine"></div>
+    <div class="toolbar" id="mineTools" hidden>
+      <button class="secondary" id="icsBtn">Add to my calendar (.ics)</button>
+    </div>
+  </section>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/db.js"></script>
+<script src="js/common.js"></script>
+<script src="js/user.js"></script>
+</body>
+</html>

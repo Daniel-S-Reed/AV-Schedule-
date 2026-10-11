@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AV Team - Manager</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar no-print">
+  <h1>AV Team Scheduling - Manager</h1>
+  <nav><a href="index.html">Volunteer page</a><a class="current" href="manager.html">Manager</a><a href="#" id="signOut" hidden>Sign out</a></nav>
+</header>
+<div id="banner" class="no-print"></div>
+
+<div class="wrap no-print">
+  <div id="loadError"></div>
+
+  <section class="card" id="loginView" hidden style="max-width:420px">
+    <h2>Manager sign-in</h2>
+    <p class="sub">Use the manager account you created in Firebase.</p>
+    <div class="field"><label for="email">Email</label><input type="email" id="email" autocomplete="username"></div><br>
+    <div class="field"><label for="pw">Password</label><input type="password" id="pw" autocomplete="current-password"></div><br>
+    <button id="loginBtn">Sign in</button>
+    <p id="loginMsg" class="error" hidden></p>
+  </section>
+
+  <main id="app" hidden>
+    <div class="tabs">
+      <button class="active" data-tab="volunteers">Volunteers</button>
+      <button data-tab="availability">Availability entries</button>
+      <button data-tab="schedule">Schedule</button>
+    </div>
+
+    <!-- ===== Volunteers ===== -->
+    <section id="tab-volunteers">
+      <div class="card">
+        <h2 id="formTitle">Add a volunteer</h2>
+        <div class="row">
+          <div class="field"><label for="vName">Name</label><input type="text" id="vName" style="width:240px"></div>
+          <div class="field"><label>Can do</label>
+            <label style="display:inline;font-weight:500;margin-right:12px"><input type="checkbox" id="vAudio"> Audio</label>
+            <label style="display:inline;font-weight:500;margin-right:12px"><input type="checkbox" id="vScreens"> Screens</label>
+            <label style="display:inline;font-weight:500"><input type="checkbox" id="vCamera"> Camera</label>
+          </div>
+          <div class="field"><button id="vSave">Add volunteer</button> <button class="secondary" id="vClear">Clear</button></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Team (<span id="vCount">0</span>)</h2>
+        <p class="sub"><strong>Disable</strong> someone to keep them on the list without scheduling them (they disappear from the volunteer page and can be re-enabled later). <strong>Remove</strong> deletes them and their entries permanently. Preferred service is chosen by each volunteer on their own page.</p>
+        <div class="scroll"><table class="list"><thead><tr><th>Name</th><th>Positions</th><th>Preferred service</th><th>Times served</th><th></th></tr></thead><tbody id="vBody"></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- ===== Availability ===== -->
+    <section id="tab-availability" hidden>
+      <div class="card">
+        <h2>Everyone's entries</h2>
+        <p class="sub">Red &#10005; = unavailable. You can click any cell to change it on someone's behalf (for example, if they emailed you).</p>
+        <div class="row">
+          <div class="field"><label for="aMonth">Starting month</label><select id="aMonth"></select></div>
+          <div class="field"><label for="aSpan">Span</label><select id="aSpan"><option value="1">1 month</option><option value="3">3 months</option></select></div>
+        </div>
+        <div class="scroll" id="availWrap"></div>
+      </div>
+    </section>
+
+    <!-- ===== Schedule ===== -->
+    <section id="tab-schedule" hidden>
+      <div class="card">
+        <h2>Generate a schedule</h2>
+        <div class="row">
+          <div class="field"><label for="sMonth">Starting month</label><select id="sMonth"></select></div>
+          <div class="field"><label for="sSpan">Span</label><select id="sSpan"><option value="1">1 month</option><option value="3">3 months</option></select></div>
+          <div class="field"><label for="svc0">Service 1</label><input type="text" id="svc0" style="width:90px"></div>
+          <div class="field"><label for="svc1">Service 2</label><input type="text" id="svc1" style="width:90px"></div>
+          <div class="field"><label for="svc2">Service 3</label><input type="text" id="svc2" style="width:90px"></div>
+          <div class="field"><button id="genBtn">Generate schedule</button></div>
+        </div>
+        <h3 style="margin:8px 0 4px">Single-service Sundays and notes</h3>
+        <p class="sub">Check a Sunday that is one combined service. Add a note (like a holiday) if you want it shown. Applies the next time you generate.</p>
+        <div class="scroll"><table class="list"><thead><tr><th>Sunday</th><th>Single service</th><th>Note</th></tr></thead><tbody id="sunBody"></tbody></table></div>
+      </div>
+      <div id="schedOut"></div>
+    </section>
+  </main>
+</div>
+
+<div id="printArea"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="js/config.js"></script>
+<script src="js/db.js"></script>
+<script src="js/common.js"></script>
+<script src="js/manager.js"></script>
+</body>
+</html>

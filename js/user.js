@@ -121,13 +121,31 @@
     $('saveBtn').disabled = true;
     const final = saved.filter((d) => !sundays.includes(d)).concat([...selected]).sort();
     try {
-      await db.setEntry(me.id, { dates: final, preferred: pref });
+      await db.setEntry(me.id, { dates: final, preferred: pref, updatedAt: Date.now() });
       saved = final; dirty = false;
+      notifyManager(final);
       setSaveState('Saved. Thank you!');
     } catch (e) {
       $('saveBtn').disabled = false;
       setSaveState('Could not save: ' + e.message);
     }
+  }
+
+  // Optional email to the manager (Web3Forms). Silent on failure; never blocks the save.
+  function notifyManager(finalDates) {
+    const key = cfg.notifyAccessKey;
+    if (!key) return;
+    const open = new Set(settings.openMonths || []);
+    const shown = finalDates.filter((d) => open.has(d.slice(0, 7)));
+    const times = serviceTimes();
+    const body = me.name + ' saved their availability.\n\n' +
+      'Unavailable Sundays (open months): ' + (shown.length ? shown.map(U.fmtMed).join(', ') : 'none') + '\n' +
+      'Preferred service: ' + (pref == null ? 'no preference' : times[pref]) + '\n';
+    fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ access_key: key, subject: 'AV availability: ' + me.name, from_name: 'AV Scheduler', message: body })
+    }).catch(() => {});
   }
 
   function renderMine() {

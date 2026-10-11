@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AV Team - Manager</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
 <header class="topbar no-print">
@@ -65,6 +65,12 @@
         <div id="monthRelease" class="days"></div>
       </div>
       <div class="card">
+        <h2>Responses</h2>
+        <p class="sub">Shows when each volunteer last saved their own availability. <strong>New</strong> means they saved since you last pressed "Mark all as seen".</p>
+        <div class="toolbar"><button class="secondary" id="markSeen">Mark all as seen</button></div>
+        <div class="scroll"><table class="list"><thead><tr><th>Volunteer</th><th>Last saved</th><th>Sundays out</th></tr></thead><tbody id="respBody"></tbody></table></div>
+      </div>
+      <div class="card">
         <h2>Everyone's entries</h2>
         <p class="sub">Red &#10005; = unavailable. You can click any cell to change it on someone's behalf (for example, if they emailed you).</p>
         <div class="row">
@@ -99,9 +105,9 @@
 <div id="printArea"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script src="js/config.js"></script>
-<script src="js/db.js"></script>
-<script src="js/common.js"></script>
-<script src="js/manager.js"></script>
+<script src="js/config.js?v=5"></script>
+<script src="js/db.js?v=5"></script>
+<script src="js/common.js?v=5"></script>
+<script src="js/manager.js?v=5"></script>
 </body>
 </html>

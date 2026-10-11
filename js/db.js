@@ -38,7 +38,7 @@
     //   { dates: [unavailable Sundays], preferred: service index or null }
     async getAllEntries() {
       const e = L.load().entries || {}, out = {};
-      Object.keys(e).forEach((id) => { out[id] = { dates: e[id].dates || [], preferred: e[id].preferred == null ? null : e[id].preferred }; });
+      Object.keys(e).forEach((id) => { out[id] = { dates: e[id].dates || [], preferred: e[id].preferred == null ? null : e[id].preferred, updatedAt: e[id].updatedAt || 0 }; });
       return out;
     },
     async getEntry(id) {
@@ -104,7 +104,7 @@
       const out = {};
       snap.docs.forEach((d) => {
         const x = d.data();
-        out[d.id] = { dates: x.dates || [], preferred: x.preferred == null ? null : x.preferred };
+        out[d.id] = { dates: x.dates || [], preferred: x.preferred == null ? null : x.preferred, updatedAt: x.updatedAt || 0 };
       });
       return out;
     },

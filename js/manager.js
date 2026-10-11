@@ -6,7 +6,7 @@
   const ROLES = U.ROLES; // audio, screens, camera
 
   // unavail: id -> unavailable Sundays; prefs: id -> preferred service index (set by the volunteer)
-  let volunteers = [], unavail = {}, prefs = {}, settings = null, schedule = null, editingId = null;
+  let volunteers = [], unavail = {}, prefs = {}, stamps = {}, settings = null, schedule = null, editingId = null;
 
   /* ------------------------------ helpers ------------------------------ */
   let toastTimer;
@@ -67,8 +67,8 @@
       return;
     }
     $('loadError').innerHTML = '';
-    unavail = {}; prefs = {};
-    Object.keys(entries).forEach((id) => { unavail[id] = entries[id].dates || []; prefs[id] = entries[id].preferred; });
+    unavail = {}; prefs = {}; stamps = {};
+    Object.keys(entries).forEach((id) => { unavail[id] = entries[id].dates || []; prefs[id] = entries[id].preferred; stamps[id] = entries[id].updatedAt || 0; });
     settings = Object.assign({ serviceTimes: cfg.serviceDefaults.slice(), singleDates: {}, notes: {}, openMonths: [] }, settings || {});
     if (!Array.isArray(settings.openMonths)) settings.openMonths = [];
     const next = new Date(); next.setMonth(next.getMonth() + 1);
@@ -79,9 +79,35 @@
     [0, 1, 2].forEach((i) => { $('svc' + i).value = settings.serviceTimes[i] || ''; });
     renderVolunteers();
     renderRelease();
+    renderResponses();
     renderAvailability();
     renderSundaySettings();
     renderSchedule();
+  }
+
+  /* ------------------------------ responses ------------------------------ */
+  function lastSeen() { try { return +localStorage.getItem('avm_seen') || 0; } catch (e) { return 0; } }
+  function ago(ts) {
+    const m = Math.round((Date.now() - ts) / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + ' min ago';
+    if (m < 1440) return Math.round(m / 60) + ' hr ago';
+    return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+  function renderResponses() {
+    const seen = lastSeen(), people = active();
+    const rows = people.slice().sort((a, b) => (stamps[b.id] || 0) - (stamps[a.id] || 0)).map((v) => {
+      const t = stamps[v.id] || 0;
+      const isNew = t > seen;
+      const open = new Set(settings.openMonths);
+      const out = (unavail[v.id] || []).filter((d) => open.has(d.slice(0, 7))).length;
+      return '<tr><td><strong>' + esc(v.name) + '</strong>' + (isNew ? ' <span class="chip ok">New</span>' : '') + '</td><td>' +
+        (t ? esc(ago(t)) : '<span style="color:var(--muted)">no response yet</span>') + '</td><td>' + out + '</td></tr>';
+    }).join('');
+    $('respBody').innerHTML = rows || '<tr><td colspan="3" class="empty">No volunteers yet.</td></tr>';
+    const n = people.filter((v) => (stamps[v.id] || 0) > seen).length;
+    const tab = document.querySelector('.tabs [data-tab="availability"]');
+    tab.textContent = 'Availability entries' + (n ? ' (' + n + ' new)' : '');
   }
 
   /* --------------------------- release months --------------------------- */
@@ -123,6 +149,7 @@
   }
 
   function wire() {
+    $('markSeen').addEventListener('click', () => { try { localStorage.setItem('avm_seen', String(Date.now())); } catch (e) {} renderResponses(); });
     $('monthRelease').addEventListener('click', onReleaseClick);
     $('openNext').addEventListener('click', openNext);
     $('closeAll').addEventListener('click', () => { if (settings.openMonths.length) saveOpenMonths([]); });
